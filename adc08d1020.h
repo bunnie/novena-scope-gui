@@ -28,6 +28,8 @@ public:
     int calibrationStatus(void);
     void calibrate(void);
     void testPattern(void);
+    void setClockPhase(char coarse, char mid, char fine, char pol);
+    int setTrigger(quint8 enable, quint8 chan, quint8 edge);
 
 private:
     int writeRegister(quint8 address, quint16 data);

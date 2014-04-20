@@ -155,10 +155,14 @@ bool ScopeDataSource::openDevice(void)
     pll->selfConfig(Ad9520::Speed500Mhz);
     adc->setDefaults();
     adc->calibrate();
+    adc->setDefaults();
     vga->setAuxPower(true);
-    dac->setOffset(0x700);
-    vga->setFilter(20);
+    dac->setOffset(0x800);
+    vga->setFilter(500);
     vga->setAttenuation(20);
+
+    //    adc->setClockPhase(0, 0, 0, 0);
+    adc->setTrigger(1, 1, 0);
 
     return true;
 }
@@ -251,6 +255,7 @@ int ScopeDataSource::getData(int samples)
 
     adc_samples = (struct adc_samples *)bufferDataPtr;
 
+#if 1
     while (bufferDataSize > 0) {
         int i;
         for (i = 0; i < 8; i++)
@@ -260,6 +265,25 @@ int ScopeDataSource::getData(int samples)
         bufferDataSize -= sizeof(*adc_samples);
         adc_samples++;
     }
+#else
+    while (bufferDataSize > 0) {
+        int i;
+        for (i = 0; i < 2; i++) {
+            channel1.append(adc_samples->channel1[4*i + 2]);
+            channel1.append(adc_samples->channel1[4*i + 3]);
+            channel1.append(adc_samples->channel1[4*i]);
+            channel1.append(adc_samples->channel1[4*i + 1]);
+	}
+        for (i = 0; i < 2; i++) {
+            channel2.append(adc_samples->channel2[4*i + 2]);
+            channel2.append(adc_samples->channel2[4*i + 3]);
+            channel2.append(adc_samples->channel2[4*i]);
+            channel2.append(adc_samples->channel2[4*i + 1]);
+	}
+        bufferDataSize -= sizeof(*adc_samples);
+        adc_samples++;
+    }
+#endif
 
     emit scopeData(channel1, channel2);
     return 0;

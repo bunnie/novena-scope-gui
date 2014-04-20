@@ -89,6 +89,41 @@ int Adc08d1020::writeRegister(quint8 address, quint16 data)
       return 0;
 }
 
+int Adc08d1020::setTrigger(quint8 enable, quint8 chan, quint8 edge)
+{
+    char i2cbuf[4]; 
+    int slave_address = ADC08D1020_I2C_ADR;
+
+    struct i2c_msg msg[1];
+    struct i2c_ioctl_rdwr_data {
+        struct i2c_msg *msgs;  /* ptr to array of simple messages */
+        int nmsgs;             /* number of messages to exchange */
+    } msgst;
+
+    if (!i2c_fd)
+        if (i2cOpen())
+            return -1;
+
+    // manually set trigger bits now fix later
+    i2cbuf[0] = 0x7;
+    i2cbuf[1] = (enable ? 1 : 0) | (chan ? 2 : 0) | (edge ? 4 : 0);
+
+    msg[0].addr = slave_address;
+    msg[0].flags = 0; // no flag means do a write
+    msg[0].len = 2;
+    msg[0].buf = i2cbuf;
+
+    msgst.msgs = msg;	
+    msgst.nmsgs = 1;
+
+    if (ioctl(i2c_fd, I2C_RDWR, &msgst) < 0){
+        perror("Write-clear failed\n");
+        return -1;
+    }
+  
+      return 0;
+}
+
 int Adc08d1020::read(quint8 address, quint8 *byte)
 {
     return readBuffer(address, byte, 1);
@@ -150,25 +185,25 @@ int Adc08d1020::calibrationStatus(void)
 void Adc08d1020::setDefaults(void)
 {
     // set config
-    writeRegister(ADC08D1020_CONFIG, 0xB3FF);
+    writeRegister(ADC08D1020_CONFIG, 0xB1FF);
     // 1
     // 0
     // 1 nSD -- set for DCLK + OR output
     // 1 DCS -- duty cycle stabilizer on
     // 0 DCP -- DDR data changes on edges, set to 1 to change mid-phase
     // 0 nDE -- DDR enable, write 0 to enable DDR mode
-    // 1 OV -- 1=output voltage set to 720mVp-p; 0=510mVp-p
+    // 0 OV -- 1=output voltage set to 720mVp-p; 0=510mVp-p
     // 1 OED -- demux control - set non-demux mode, so the delay outputs are not used
     // 1111_1111
 
     // set extended config
-    writeRegister(ADC08D1020_EXTCONFIG, 0x3FF);
+    writeRegister(ADC08D1020_EXTCONFIG, 0x7FF);
     // 0  - no test pattern, set 1 for TP
     // 0  - keep resistor trim on
     // 0  - normal dual channel mode (set 1 for DES)
     // 0  - input select -- both on I channel if in DES
     // 0  
-    // 0  - DLF -- set only if ADC running < 900MHz
+    // 1  - DLF -- set only if ADC running < 900MHz
     // 11_1111_1111
 
 }
@@ -180,10 +215,11 @@ void Adc08d1020::calibrate(void)
   writeRegister( ADC08D1020_CAL, 0xFFFF ); // set the cal bit
   // clear the bit, it's not self clearing
   writeRegister( ADC08D1020_CAL, 0x7FFF ); // clear the cal bit
-  writeRegister( ADC08D1020_EXTCONFIG, 0x03FF ); // reset RTD
   
   while (calibrationStatus())  // wait for cal to finish
     ;
+
+  writeRegister( ADC08D1020_EXTCONFIG, 0x03FF ); // reset RTD
 }
 
 void Adc08d1020::testPattern(void)
@@ -197,4 +233,12 @@ void Adc08d1020::testPattern(void)
     // 0  
     // 0  - DLF -- set only if ADC running < 900MHz
     // 11_1111_1111
+}
+
+
+void Adc08d1020::setClockPhase(char coarse, char mid, char fine, char pol)
+{
+  writeRegister( ADC08D1020_COARSE_PHASE, (pol ? 0x8000 : 0) | ((coarse & 0x1F) << 10) |
+		 (mid & 0x7) << 7 | 0x7F );
+  writeRegister( ADC08D1020_FINE_PHASE, ((fine & 0xff) << 8) | 0xFF );
 }

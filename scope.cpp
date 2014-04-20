@@ -93,7 +93,7 @@ void Scope::gotScopeData(const QByteArray channel1, const QByteArray channel2)
         lastY = thisY;
     }
 
-    /*
+#if 1  // second scope channel painting
     painter.setPen(QPen(Qt::red, myPenWidth, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     lastY = channel2.at(0);
     samples = channel2.size();
@@ -102,7 +102,7 @@ void Scope::gotScopeData(const QByteArray channel1, const QByteArray channel2)
         painter.drawLine(i - 1, lastY, i, thisY);
         lastY = thisY;
     }
-    */
+#endif
 
     if (currentMode == autoSampling)
         resampleTimer->start(redrawInterval);
